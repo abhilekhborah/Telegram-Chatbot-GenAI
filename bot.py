@@ -3,16 +3,30 @@ from aiogram import types, executor
 from dotenv import load_dotenv
 import os
 import logging
-
+import openai
 
 
 load_dotenv()
 API_TOKEN = os.getenv("BOT_TOKEN")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+openai.api_key = OPENAI_API_KEY
 
 logging.basicConfig(level=logging.INFO)
 
 bot = Bot(token=API_TOKEN)
 dispatcher = Dispatcher(bot)
+
+model = "gpt-3.5-turbo"
+
+class Reference:
+    def __init__(self) -> None:
+        self.response = ""
+
+reference = Reference()
+
+def clear_past():
+    reference.response = ""
 
 
 @dispatcher.message_handler(commands=['start'])
@@ -44,10 +58,18 @@ async def echo_all(message: types.Message):
     """
     A handler to echo all incoming messages.
 
-    Args:
-    message (types.Message): _description_
     """
-    await message.reply(message.text)
+    print(f">>> USER: \n\t{message.text}")
+    response = openai.ChatCompletion.create(
+        model = model,
+        messages = [
+            {"role": "assistant", "content": reference.response},
+            {"role": "user", "content": message.text}
+        ]
+    )
+    reference.response = response["choices"][0]["message"]["content"]
+    print(f">>> GPT: \n\t{reference.response}")
+    await bot.send_message(chat_id=message.chat.id, text=reference.response)
 
 if __name__ ==  "__main__":
     executor.start_polling(dispatcher, skip_updates=True)
